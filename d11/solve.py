@@ -1,6 +1,5 @@
 # part 1 
-# dynamic programming?
-# do it the dumb way first, then dynamic programming!
+
 file = 'input.txt'
 stones = list(map(int, open(file).read().strip().split()))
 res = 0
@@ -27,11 +26,10 @@ print(len(stones))
 
 
 # part 2
-# dynamic programming?
-# do it the dumb way first, then dynamic programming!
+
 """
 .plan
-This is fractal.
+
 0
 1
 2024
@@ -48,16 +46,8 @@ I can memoize each unique number I come across and how many stones it decomposes
 This will give a shortcut lookup that builds in usefulness over time
 
 I'm an iterative guy so I'll do it iteratively.
-Sike, recursive is a great fit
-
-The difficult part is propagating contributions back up the tree
+Sike, recursive is a great fit.
 """
-file = 'input.txt'
-stones = list(map(int, open(file).read().strip().split()))
-res = 0
-n_steps = 75
-print('beginning')
-print(' '.join(list(map(str, stones))))
 
 from collections import defaultdict
 '''
@@ -65,35 +55,10 @@ Maps
 stone_id -> map(steps -> num_children)
 '''
 cache = defaultdict(dict)
-def transform(stone):
-    if stone == 0:
-        return [1]
-    stonestr = str(stone)
-    stonelen = len(stonestr)
-    if stonelen % 2 == 0:
-        return [int(stonestr[:stonelen//2]), int(stonestr[stonelen//2:])]
-    return [stone * 2024]
+def transform(s):
+    return [1] if s == 0 else [int(ss[:len(ss)//2]), int(ss[len(ss)//2:])] if len(ss := str(s)) % 2 == 0 else [s * 2024]
 
-def descend(stone, n_steps):
-    if n_steps == 0:
-        return 1
-    ret = cache[stone].get(n_steps)
-    if ret:
-        return ret
-    
-    # drink full and descend
-    children = transform(stone)
-    ret = 0
-    for child in children:
-        ret += descend(child, n_steps-1)
+def descend(s, n_steps):
+    return 1 if n_steps == 0 else cache[s].get(n_steps) or cache[s].setdefault(n_steps, sum(map(lambda c: descend(c, n_steps=n_steps-1), transform(s))))
 
-    # How does that affect my count?
-    cache[stone][n_steps] = ret
-    return ret
-
-
-ret = 0
-for stone in stones:
-    ret += descend(stone, n_steps=n_steps)
-
-print(ret)
+print(sum(map(lambda stone: descend(stone, n_steps=75), list(map(int, open('input.txt').read().strip().split())))))
