@@ -136,7 +136,6 @@ class Map:
         '''
         '''
         Recursively search the tree of boxes that WOULD move if we moved.
-        Reference a box as the index of its left side.
         '''
         cur_coord = Coord(*tup)
         dir = Coord(*dir)
@@ -178,7 +177,6 @@ class Map:
         boxes = set()
         def visit(idx, dir):
             next_idx = idx + dir
-            # if next_idx not in boxes:
             try:
                 next_val = self[next_idx.tup]
                 print(next_idx, next_val)
@@ -252,7 +250,6 @@ class Map:
     def try_move(self, tup, dir):
         # Returns coord tup after attempting to move in a direction
         assert self[tup] == '@'
-        # If there is a '.' between the agent and the nearest wall, it can move
         if dir[0] != 0:
             return self.updown_move(tup, dir)
         elif dir[1] != 0:
