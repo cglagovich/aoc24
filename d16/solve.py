@@ -78,11 +78,21 @@ class Maze:
             if self[nc] != '#':
                 ret.append(nc)
         return ret
+    
+    def path_str(self, path):
+        grid = [['.' for _ in range(self.C)] for _ in range(self.R)]
+        for r in range(self.R):
+            for c in range(self.C):
+                grid[r][c] = self[r, c]
+        for r, c in path:
+            grid[r][c] = 'x'
+        return '\n'.join([''.join(row) for row in grid])
 
 def visit_dfs(maze, paths, cur_path, cur_coord):
     cur_path.append(cur_coord)
     if maze[cur_coord] == 'E':
         paths.append(cur_path.copy())
+        print(f'Found path with score {score(paths[-1])}')
         return
     for ncoord in maze.next_moves(cur_coord):
         # Branch the path for each new move we take
@@ -90,7 +100,7 @@ def visit_dfs(maze, paths, cur_path, cur_coord):
             path_clone = cur_path.copy()
             visit_dfs(maze, paths, path_clone, ncoord)
 
-def score(path):
+def score(path, direc='E'):
     direc_to_delta = {'E': (0, 1), 'W': (0, -1), 'N': (-1, 0), 'S': (1, 0)}
     delta_to_direc = {v: k for k, v in direc_to_delta.items()}
     def turn(direc, c0, c1):
@@ -105,20 +115,21 @@ def score(path):
             return new_direc, 1
         
         # 180 degree turn (should never be done!)
-        assert False
-        assert direc[0] == -direc_delta[0] and direc[1] == -direc_delta[1]
-        return 2
+        # assert False
+        # print(new_direc)
+        # print(direc)
+        assert delta[0] == -direc_delta[0] and delta[1] == -direc_delta[1]
+        return new_direc, 2
     
     score = 0
-    direc = 'E'
     for idx in range(1, len(path)):
         prev_coord = path[idx-1]
         coord = path[idx]
         direc, n_turns = turn(direc, prev_coord, coord)
         score += 1 + n_turns * 1000
-    return score
+    return score, direc
 
-fname = 'sample.txt'
+fname = 'input.txt'
 maze = Maze(open(fname).readlines())
 print(maze)
 
@@ -126,41 +137,118 @@ agent_pos = maze.get_agent_pos()
 print(f'{agent_pos=}')
 
 # Use dfs
+# import sys
+# sys.setrecursionlimit(100000)
 # paths = []
 # cur_path = []
 # visit_dfs(maze, paths, cur_path, agent_pos)
 
-# Use bfs
-paths = []
-working_paths = [[agent_pos]]
-while len(working_paths) > 0:
-    # print(f'{len(working_paths)=}')
-    p = working_paths.pop(0)
-    # print(f'{p=}')
-    c = p[-1]
-    # print(f'{c=}')
-    if maze[c] == 'E':
-        paths.append(p.copy())
+# # Use bfs
+# paths = []
+# working_paths = [[agent_pos]]
+# while len(working_paths) > 0:
+#     # print(f'{len(working_paths)=}')
+#     p = working_paths.pop()
+#     c = p[-1]
+#     if maze[c] == 'E':
+#         paths.append(p)
+#         print(f'found a path with score {score(paths[-1])}')
+#         continue
+#     for ncoord in maze.next_moves(c):
+#         if ncoord not in p:
+#             pclone = p.copy()
+#             pclone.append(ncoord)
+#             working_paths.append(pclone)
+
+
+# # Use tree-based bfs
+# class Node:
+#     def __init__(self, val):
+#         self.val = val
+#         self.prev = None
+
+# def append(tail, new_val):
+#     new_node = Node(new_val)
+#     new_node.prev = tail
+#     return new_node
+
+# def tail_to_list(tail):
+#     cur = tail
+#     ret = [cur.val]
+#     while cur.prev is not None:
+#         cur = cur.prev
+#         ret.append(cur.val)
+#     return list(reversed(ret))
+
+# def is_in(tail, val):
+#     if val == tail.val:
+#         return True
+#     while tail.prev is not None:
+#         tail = tail.prev
+#         if val == tail.val:
+#             return True
+#     return False
+
+# for _ in range(1000):
+#     paths = []
+#     working_paths = [Node(agent_pos)]
+#     # idx = 0
+#     while len(working_paths) > 0:
+#         # print(f'{len(working_paths)=}')
+#         cur_node = working_paths.pop()
+#         # if idx % 100000 == 0:
+#         #     print(f'{len(working_paths)=}')
+#         #     print(f'current node length: {len(tail_to_list(cur_node))}')
+#         cur_coord = cur_node.val
+#         if maze[cur_coord] == 'E':
+#             paths.append(tail_to_list(cur_node))
+#             # print(f'found a path with score {score(paths[-1])}')
+#             continue
+#         for ncoord in maze.next_moves(cur_coord):
+#             # TODO: Optimize set lookup
+#             # if ncoord not in tail_to_list(cur_node):
+#             if not is_in(cur_node, ncoord):
+#                 next_node = append(cur_node, ncoord)
+#                 working_paths.append(next_node)
+#         # idx += 1
+
+
+import heapq
+# # heapq.heappush(pq, (key, data))
+# # heapq.heappop(pq)
+# # Do Dijkstra
+pq = []
+heapq.heappush(pq, (0, agent_pos, 'E'))
+
+visited = set()
+while len(pq) > 0:
+    cost, coord, direc = heapq.heappop(pq)
+    visited.add((coord, direc))
+    if maze[coord] == 'E':
+        print(cost)
         continue
-    for ncoord in maze.next_moves(c):
-        if ncoord not in p and maze[ncoord] != '#':
-            # print(f'{ncoord=}')
-            pclone = p.copy()
-            pclone.append(ncoord)
-            working_paths.append(pclone)
+    for ncoord in maze.next_moves(coord):
+        ncost, ndirec = score([coord, ncoord], direc)
+        if (ncoord, ndirec) not in visited:
+            # ncost, ndirec = score([coord, ncoord], direc)
+            heapq.heappush(pq, (cost + ncost, ncoord, ndirec))
+            # pclone.append(ncoord)
+            # working_paths.append(pclone)
+    
+# print(cost)
 
-min_score = float('inf')
-for idx, p in enumerate(paths):
-    print(f'path {idx}')
-    # print(p)
-    path_score = score(p)
-    min_score = min(min_score, path_score)
-    print(f'score: {score(p)}')
-    assert maze[p[-1]] == 'E'
-    for coord in p:
-        assert maze[coord] != '#'
+# min_score = float('inf')
+# for idx, p in enumerate(paths):
+#     print(f'path {idx}')
+#     path_score, _ = score(p)
+#     if path_score < min_score:
+#         min_score = path_score
+#     print(f'score: {score(p)}')
+#     assert maze[p[-1]] == 'E'
+#     for coord in p:
+#         assert maze[coord] != '#'
 
-print(min_score)
+# print(min_score)
 
 
 
