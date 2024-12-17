@@ -162,23 +162,25 @@ print(f'{agent_pos=}')
 
 
 # # Use tree-based bfs
-# class Node:
-#     def __init__(self, val):
-#         self.val = val
-#         self.prev = None
+class Node:
+    def __init__(self, val):
+        self.val = val
+        self.prev = None
+    def __lt__(self, rhs):
+        return self.val < rhs.val
 
-# def append(tail, new_val):
-#     new_node = Node(new_val)
-#     new_node.prev = tail
-#     return new_node
+def append(tail, new_val):
+    new_node = Node(new_val)
+    new_node.prev = tail
+    return new_node
 
-# def tail_to_list(tail):
-#     cur = tail
-#     ret = [cur.val]
-#     while cur.prev is not None:
-#         cur = cur.prev
-#         ret.append(cur.val)
-#     return list(reversed(ret))
+def tail_to_list(tail):
+    cur = tail
+    ret = [cur.val]
+    while cur.prev is not None:
+        cur = cur.prev
+        ret.append(cur.val)
+    return list(reversed(ret))
 
 # def is_in(tail, val):
 #     if val == tail.val:
@@ -252,3 +254,51 @@ while len(pq) > 0:
 
 
 
+# part 2
+
+fname = 'input.txt'
+maze = Maze(open(fname).readlines())
+print(maze)
+
+agent_pos = maze.get_agent_pos()
+print(f'{agent_pos=}')
+
+# Construct tree
+head = Node(agent_pos)
+# # Do Dijkstra
+pq = []
+heapq.heappush(pq, (0, agent_pos, head, 'E'))
+
+min_cost = float("inf")
+ends = []
+visited = set()
+while len(pq) > 0:
+    cost, coord, tail, direc = heapq.heappop(pq)
+    visited.add((coord, direc))
+    if maze[coord] == 'E':
+        print(cost)
+        min_cost = min(min_cost, cost)
+        ends.append(tail)
+        continue
+    for ncoord in maze.next_moves(coord):
+        ncost, ndirec = score([coord, ncoord], direc)
+        if (ncoord, ndirec) not in visited:
+            new_node = append(tail, ncoord)
+            # ncost, ndirec = score([coord, ncoord], direc)
+            heapq.heappush(pq, (cost + ncost, ncoord, new_node, ndirec))
+            # pclone.append(ncoord)
+            # working_paths.append(pclone)
+print(min_cost)
+print(ends)
+
+
+completion_paths = set()
+for end in ends:
+    l = tail_to_list(end)
+    l_score, _ = score(l)
+    print(f'{l_score}: {l}')
+    # breakpoint()
+    if l_score == min_cost:
+        completion_paths |= set(l)
+print(completion_paths)
+print(len(completion_paths))
