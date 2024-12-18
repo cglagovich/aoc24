@@ -40,16 +40,11 @@ print('part1', search(inp[:n_bytes]))
 import math
 low = n_bytes
 high = len(open(fname).readlines())
-while low < high:
+while low < high - 1:
     mid = (low + high) // 2
-    print(f'low, mid, high: {low}, {mid}, {high}')
     if search(inp[:mid]):
-        print(f'passed')
         low = mid
     else:
-        print(f'failed')
         high = mid
-    if low == high - 1:
-        break
 
 print(f'part2', inp[low])
