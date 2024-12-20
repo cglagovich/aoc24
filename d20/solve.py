@@ -8,7 +8,7 @@ valid_nodes = set(complex(r, c) for r in range(len(maze)) for c in range(len(maz
 '''
 Construct a tree. Head is start, tail is end. Each node refers to the next node in the path.
 In addition, each node has a cheat, which is the next valid node that it would go to if it cheated.
-Note that each node can have multiple cheats. # TODO: Add multiple cheats.
+Note that each node can have multiple cheats.
 
 Then for each node check the length of the path from it to its cheat, and that's the amount of time
 saved for that cheat.
@@ -51,6 +51,13 @@ class Path:
             lento += 1
             cur = cur.next
         return lento
+    
+    def generate_dists(self):
+        cache = {}
+        ll = self.tolist()
+        for idx, val in enumerate(ll):
+            cache[val] = len(ll) - idx
+        return cache
 
 def get_manhattan_block(cur, max_l1_dist):
     '''
@@ -109,6 +116,8 @@ def construct_path(maze, max_l1_dist):
     return head
 
 def get_cheats(head):
+    # mapping from node val to dist from end of list, significantly speeds up path len calculation.
+    dist_cache = head.generate_dists()
     # For each node, for each cheat, calculate how much time it saves
     l1_dist = lambda x, y: abs(x.real - y.real) + abs(x.imag - y.imag)
     cheat_savings = []
@@ -116,20 +125,19 @@ def get_cheats(head):
     while cur.next is not None:
         for cv in cur.cheat_vals:
             # Savings is len of uncheated path - length of cheat
-            cheat_len = cur.len_to_val(cv) - l1_dist(cur.val, cv)
+            cheat_path_len = dist_cache[cur.val] - dist_cache[cv]
+            cheat_len = cheat_path_len - l1_dist(cur.val, cv)
             cheat_savings.append((cheat_len, cur.val, cv))
         cur = cur.next
     return cheat_savings
 
 def sum_savings(savings):
     savings = sorted(savings, key=lambda x: x[0], reverse=True)
-    # for s in savings:
-    #     print(f'{s[0]} : {s[1]}->{s[2]}')
 
     from collections import Counter
     count = Counter([s[0] for s in savings])
-    for k, v in sorted(count.items(), key=lambda x: x[0], reverse=True):
-        print(f'{v} ways to save {k}')
+    # for k, v in sorted(count.items(), key=lambda x: x[0], reverse=True):
+    #     print(f'{v} ways to save {k}')
 
     final_cheats = sum([v for k, v in count.items() if k >= min_saved])
     
@@ -142,12 +150,7 @@ print(f'part 1:', sum_savings(savings))
 # part 2
 '''
 Now, any point that is L1 distance 20 or less from current node is a potential cheat.
-I'll generalize the above cheat construction code to take a maximum L1 distance.
-
-How would you do this functionally?
-1. construct list of all nodes within max_l1_dist of current node
-2. filter by valid nodes
-3. filter by not in visited
+I generalized the above cheat construction code to take a maximum L1 distance.
 '''
 head = construct_path(maze, 20)
 savings = get_cheats(head)
