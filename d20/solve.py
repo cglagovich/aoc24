@@ -52,80 +52,103 @@ class Path:
             cur = cur.next
         return lento
 
+def get_manhattan_block(cur, max_l1_dist):
+    '''
+    Eample, max_l1_dist = 4
 
-def construct_path(maze):
-    R = len(maze)
-    C = len(maze[0])
+    #############
+    ######.######
+    #####...#####
+    ####.....####
+    ###.......###
+    ##....X....##
+    ###.......###
+    ####.....####
+    #####...#####
+    ######.######
+    #############
+    '''
+    # neighbors = []
+    for r in range(-max_l1_dist, max_l1_dist+1):
+        leftover = max_l1_dist - abs(r)
+        for c in range(-leftover, leftover + 1):
+            if not (r == 0 and c == 0):
+                # neighbors.append(cur + complex(r, c))
+                yield cur + complex(r, c)
+    # return neighbors
+
+
+def construct_path(maze, max_l1_dist):
     get_pos_of = lambda goal: [complex(r, c) for r in range(len(maze)) for c in range(len(maze[0])) if maze[r][c] == goal][0]
-    is_in_bounds = lambda val: val.real >= 0 and val.real < R and val.imag >= 0 and val.imag < C
     start_pos = get_pos_of('S')
     end_pos = get_pos_of('E')
-    print(f'start_pos={start_pos}')
-    # Construct the valid path
+
+    filter_neighbors = lambda neighbors: filter(lambda x: x in valid_nodes and x not in visited, neighbors)
+    one_away = list(get_manhattan_block(complex(0, 0), 1))
+    dist_away = list(get_manhattan_block(complex(0, 0), max_l1_dist))
+
     head = Path(start_pos)
     visited = set()
     cur = head
     while cur.val != end_pos:
         visited.add(cur.val)
-        for ndir in [1+0j, -1+0j, 0+1j, 0-1j]:
-            nval = cur.val + ndir
-            if not is_in_bounds(nval):
-                continue
-            if nval in visited:
-                continue
-            if nval not in valid_nodes:
-                continue
-            cur = cur.append(nval)
-            break
-    print('constructed path')
+        # First, find the next node in the true path
+        # neighbors = get_manhattan_block(cur.val, 1)
+        neighbors = map(lambda x: x + cur.val, one_away)
+        neighbors = list(filter_neighbors(neighbors))
+        assert len(neighbors) == 1
+        nnode = cur.append(neighbors[0])
 
-    # Construct cheating paths
-    cur = head
-    visited = set()
-    while cur.next is not None:
-        visited.add(cur.val)
-        for ndir in [1+0j, -1+0j, 0+1j, 0-1j]:
-            # Skip over a wall
-            wall = cur.val + ndir
-            skip = wall + ndir
-            if is_in_bounds(wall) and maze[int(wall.real)][int(wall.imag)] == '#' and skip in valid_nodes and skip not in visited:
-                cur.cheat_vals.append(skip)
+        # Then, get all possible cheats
+        # cheats = get_manhattan_block(cur.val, max_l1_dist)
+        cheats = map(lambda x: x + cur.val, dist_away)
+        cheats = filter_neighbors(cheats)
+        cur.cheat_vals = list(cheats)
 
-        # Look at the next node
-        cur = cur.next
+        cur = nnode
     return head
 
 def get_cheats(head):
+    # For each node, for each cheat, calculate how much time it saves
+    l1_dist = lambda x, y: abs(x.real - y.real) + abs(x.imag - y.imag)
     cheat_savings = []
     cur = head
     while cur.next is not None:
         for cv in cur.cheat_vals:
-            # Subtract 2 because a cheat takes two moves
-            cheat_len = cur.len_to_val(cv) - 2
+            # Savings is len of uncheated path - length of cheat
+            cheat_len = cur.len_to_val(cv) - l1_dist(cur.val, cv)
             cheat_savings.append((cheat_len, cur.val, cv))
         cur = cur.next
     return cheat_savings
 
-def repr_savings(savings):
+def sum_savings(savings):
     savings = sorted(savings, key=lambda x: x[0], reverse=True)
     # for s in savings:
     #     print(f'{s[0]} : {s[1]}->{s[2]}')
 
     from collections import Counter
     count = Counter([s[0] for s in savings])
-    # for k, v in sorted(count.items(), key=lambda x: x[0], reverse=True):
-    #     print(f'{v} ways to save {k}')
+    for k, v in sorted(count.items(), key=lambda x: x[0], reverse=True):
+        print(f'{v} ways to save {k}')
 
     final_cheats = sum([v for k, v in count.items() if k >= min_saved])
-    print(final_cheats)
+    
+    return final_cheats
 
-head = construct_path(maze)
+head = construct_path(maze, 2)
 savings = get_cheats(head)
-repr_savings(savings)
+print(f'part 1:', sum_savings(savings))
 
 # part 2
 '''
 Now, any point that is L1 distance 20 or less from current node is a potential cheat.
 I'll generalize the above cheat construction code to take a maximum L1 distance.
-'''
 
+How would you do this functionally?
+1. construct list of all nodes within max_l1_dist of current node
+2. filter by valid nodes
+3. filter by not in visited
+'''
+head = construct_path(maze, 20)
+savings = get_cheats(head)
+print('part 2:', sum_savings(savings))
