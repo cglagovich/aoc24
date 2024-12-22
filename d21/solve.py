@@ -31,11 +31,29 @@ I need to filter by legal commands.
 For each permutation of the first run, I'm not enumerating all permutation of the next run and so forth.
 
 ^ Turns out that this worked! However, it takes 31.88 seconds to run.
+For Part 2 it might take...... forever.
+There must be some structure to the problem that I don't understand. Maybe, given a chain of robots,
+there's some always optimal way to get to a specific part of the keypad. 
+I see the example usually has `<v<` rather than `v<<` or `<<v`.
+Or maybe there's a way to solve this with dynamic programming.
+
+Potential, fast iterative solution.
+Do this command by command, breaking down the problem. 
+For each `start -> end` pair of positions on a specific pad, there is at least one optimal path
+    which results in the fewest commands at the highest level.
+I think I have to do this both recursively and iteratively.
+- For each command, recurse all the way to the top to find the shortest top level command to get there
+- Keep track of starting position for each command
+
+
+def min_len_of_command(pads_left=0, )
 
 Maybe less dumb idea:
 - For each possible start and end delta at each level, brute force all possible
 ways of getting there at the level and all upper levels. This builds a cache
 for each level and can find the smallest path at the top level for any input.
+
+
 
 +---+---+---+
 | 7 | 8 | 9 |
@@ -54,6 +72,11 @@ for each level and can find the smallest path at the top level for any input.
 | < | v | > |
 +---+---+---+
 
+    +---+---+
+    | ^ | A |
++---+---+---+
+| < | v | > |
++---+---+---+
 
 
 <vA<AA>>^AvAA<^A>A<v<A>>^AvA^A<vA>^A<v<A>^A>AAvA^A<v<A>A>^AAAvA<^A>A
@@ -122,9 +145,9 @@ def direc_commands(start, end, avoid):
 
     return commands
 
-def is_legal_command(seq, pad):
+def is_legal_command(seq, pad, start_id='A'):
     avoid = pad['illegal']
-    curpos = pad['A']
+    curpos = pad[start_id]
     for ch in seq:
         if ch == 'A':
             continue
@@ -134,107 +157,63 @@ def is_legal_command(seq, pad):
         
     return True
 
-
-def command_sequence(seq, pad):
-    '''
-    Given a target sequence and a target pad, 
-    determine the commands required to input that sequence into the pad.
-    '''
-    commands = ""
-    curpos = pad['A']
-    for ch in seq:
-        # print(f'char {ch} is at {pad[ch]}')
-        nextpos = pad[ch]
-        curcommands = direc_commands(curpos, nextpos, pad['illegal'])
-        curcommands += 'A'
-        commands += curcommands
-        # print(''.join(curcommands))
-        curpos = nextpos
-    return commands
-
 from itertools import permutations
-
-def all_permutations(seq):
-    '''
-    Buggy because it doesn't generate all permutations
-    '''
-    splits = seq.split('A')
-    for idx, split in enumerate(splits[:-1]):
-        for perm in permutations(split):
-            yield 'A'.join(splits[:idx] + [''.join(perm)] + splits[idx+1:])
-
-def all_permutations_rec(seq):
-    '''
-    Naturally recursive. For each permutation of the first run, yield it with all permutations of the next run
-    '''
-    splits = seq.split('A')
-    split = splits[0]
-    perms = set(permutations(split))
-    if len(splits) == 2:
-        for perm in perms:
-            yield ''.join(perm) + 'A'
-    else:
-        for perm in perms:
-            for nextperm in all_permutations_rec('A'.join(splits[1:])):
-                yield ''.join(perm) + 'A' + nextperm
+from functools import lru_cache
 
 
-def solve(code):
-    '''
-    Few stages to this
-    '''
-    commands = [[code]]
+'''
+Recursive solving function
+Given a code, startpos, and depth, it returns the min length of the topmost program to produce that code.
 
-    print(f'solving {code}')
-    for idx, pad in enumerate([numpad, dirpad, dirpad]):
-        min_len = float('inf')
-        print(f'\tpad {idx}')
-        targets = commands[-1]
-        cur_acc = []
-        for t in targets:
-            base_command = command_sequence(t, pad)
-            if len(base_command) <= min_len:
-                min_len = len(base_command)
-            else:
-                continue
-            print(f'\t\ttarget {t}')
-            # print(f'base_command: {base_command}')
-            permutations = set(all_permutations_rec(base_command))
-            # for perm in permutations:
-            #     print(perm)
-            permutations = filter(lambda x: is_legal_command(x, pad), permutations)
-            cur_acc.extend(list(permutations))
-            print(f'\t\tcur_acc len {len(cur_acc)}')
-            # commands.append(list(permutations))
-        # remove all cur commands longer than longest cur command
-        min_len = min(len(c) for c in cur_acc)
-        cur_acc = list(filter(lambda x: len(x) == min_len, cur_acc))
-        commands.append(cur_acc)
+It iterates over the characters of a code.
+For each character,
+    return the minimum length of all solutions
+return the sum of character lengths
 
+Is it the case that anyone who enters this function is starting on 'A'?
+At the beginning, every single robot is on A
+Every command ends in A, so every start pos is 'A'
+'''
 
-    # print(f'{len(commands)=}')
-    # print(f'{len(commands[-1])=}')
-    # breakpoint()
-    # print('\n'.join(reversed(commands)))
-    smallest = sorted(commands[-1], key=lambda x: len(x))[0]
-    # print(smallest, len(smallest))
+@lru_cache
+def minsolve(code, depth, maxdepth):
+    pad = numpad if depth == 0 else dirpad
+    if depth == maxdepth:
+        return len(code) 
+    start_id = 'A'
+    start_pos = pad[start_id]
+    codelen = 0
+    for ch in code:
+        nextpos = pad[ch]
+        # This is one possible set of buttons to push to get the current cursor over `ch`
+        buttons = direc_commands(start_pos, nextpos, pad['illegal'])
+        allbuttons = filter(lambda x: is_legal_command(x, pad, start_id=start_id), set(''.join(perm) for perm in permutations(buttons)))
+        ch_min_len = min(minsolve(button+'A', depth+1, maxdepth) for button in allbuttons)
+        codelen += ch_min_len
+        start_pos = nextpos
+        start_id = ch
+    return codelen
+
+def code_complexity(code, maxdepth):
+    minlen = minsolve(code, 0, maxdepth)
     codenum = int(code.split('A')[0])
-    res = codenum * len(smallest)
-    print(f'{codenum} * {len(smallest)} = {res}')
+    res = codenum * minlen
+    return res
+
+def solve(codes, maxdepth):
+    res = 0
+    for code in codes:
+        res += code_complexity(code, maxdepth)
     return res
 
 
-# allperms = '\n'.join(sorted(list(set(all_permutations_rec('<^^^AvvvA^^A>vvA')))))
-# print(allperms)
-# breakpoint()
 
 import sys
 fname = sys.argv[1]
-codes = open(fname).readlines()
+codes = [c.strip() for c in open(fname).readlines()]
 
 # part 1
-ret = 0
-for code in codes:
-    code = code.strip()
-    ret += solve(code)
-print('part 1:', ret)
+print('part 1:', solve(codes, 3))
+
+# part 2
+print('part 2:', solve(codes, 26))
