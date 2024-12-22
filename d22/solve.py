@@ -5,35 +5,30 @@ def process(prev, cur):
     cur = cur % 16777216
     return cur
 
-def secret(s):
-    for i in range(NITERS):
+def all_secrets(s):
+    for _ in range(NITERS):
         s = process(s, s*64)
         s = process(s, s//32)
         s = process(s, s*2048)
-    return s
+        yield s
 
 def solvep1(codes):
-    return sum(map(lambda c: secret(c), codes))
+    return sum(map(lambda c: list(all_secrets(c))[-1], codes))
 
 
 def secretmap(s):
-    secrets = [s]
-    for i in range(NITERS):
-        s = process(s, s*64)
-        s = process(s, s//32)
-        s = process(s, s*2048)
-        secrets.append(s)
+    prices = list(map(lambda x: x % 10, [s] + list(all_secrets(s))))
 
     diffmap = {}
-    diffi = lambda i, j: (secrets[i - j+1] % 10) - (secrets[i - j] % 10)
-    for i in range(4, len(secrets)):
+    diffi = lambda i, j: prices[i - j+1] - prices[i - j]
+    for i in range(4, len(prices)):
         d0 = diffi(i, 4)
         d1 = diffi(i, 3)
         d2 = diffi(i, 2)
         d3 = diffi(i, 1)
         diff = (d0, d1, d2, d3)
-        if diff not in diffmap:
-            diffmap[diff] = (secrets[i] % 10)
+        diffmap.setdefault(diff, prices[i])
+
     return diffmap
 
 def solvep2(codes):
