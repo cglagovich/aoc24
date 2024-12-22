@@ -24,6 +24,13 @@ Here's a dumb idea:
 - For each level of directional commands except for the last, brute force produce
 all variations of orderings for sequences between 'A' commands. Take each of these
 permutations all the way to the top, picking the one with the smallest length.
+- I implemented this and it sort of works, but I get a lower result than expected. 
+I think that's because I'm creating invalid paths that go over the illegal space.
+I need to filter by legal commands.
+- My answer was too high again. I think another problem I had was that I'm not generating all permutations.
+For each permutation of the first run, I'm not enumerating all permutation of the next run and so forth.
+
+^ Turns out that this worked! However, it takes 31.88 seconds to run.
 
 Maybe less dumb idea:
 - For each possible start and end delta at each level, brute force all possible
@@ -86,6 +93,7 @@ delta_to_dir = {
     complex(0, -1): '<',
     complex(0, 0): '',
 }
+dir_to_delta = {v: k for k, v in delta_to_dir.items()}
 
 def direc_commands(start, end, avoid):
     '''
@@ -114,6 +122,18 @@ def direc_commands(start, end, avoid):
 
     return commands
 
+def is_legal_command(seq, pad):
+    avoid = pad['illegal']
+    curpos = pad['A']
+    for ch in seq:
+        if ch == 'A':
+            continue
+        curpos = curpos + dir_to_delta[ch]
+        if curpos == avoid:
+            return False
+        
+    return True
+
 
 def command_sequence(seq, pad):
     '''
@@ -132,22 +152,81 @@ def command_sequence(seq, pad):
         curpos = nextpos
     return commands
 
+from itertools import permutations
+
+def all_permutations(seq):
+    '''
+    Buggy because it doesn't generate all permutations
+    '''
+    splits = seq.split('A')
+    for idx, split in enumerate(splits[:-1]):
+        for perm in permutations(split):
+            yield 'A'.join(splits[:idx] + [''.join(perm)] + splits[idx+1:])
+
+def all_permutations_rec(seq):
+    '''
+    Naturally recursive. For each permutation of the first run, yield it with all permutations of the next run
+    '''
+    splits = seq.split('A')
+    split = splits[0]
+    perms = set(permutations(split))
+    if len(splits) == 2:
+        for perm in perms:
+            yield ''.join(perm) + 'A'
+    else:
+        for perm in perms:
+            for nextperm in all_permutations_rec('A'.join(splits[1:])):
+                yield ''.join(perm) + 'A' + nextperm
+
+
 def solve(code):
     '''
     Few stages to this
     '''
-    commands = [code]
+    commands = [[code]]
 
-    for pad in [numpad, dirpad, dirpad]:
-        target = commands[-1]
-        commands.append(command_sequence(target, pad))
-    
-    print('\n'.join(reversed(commands)))
+    print(f'solving {code}')
+    for idx, pad in enumerate([numpad, dirpad, dirpad]):
+        min_len = float('inf')
+        print(f'\tpad {idx}')
+        targets = commands[-1]
+        cur_acc = []
+        for t in targets:
+            base_command = command_sequence(t, pad)
+            if len(base_command) <= min_len:
+                min_len = len(base_command)
+            else:
+                continue
+            print(f'\t\ttarget {t}')
+            # print(f'base_command: {base_command}')
+            permutations = set(all_permutations_rec(base_command))
+            # for perm in permutations:
+            #     print(perm)
+            permutations = filter(lambda x: is_legal_command(x, pad), permutations)
+            cur_acc.extend(list(permutations))
+            print(f'\t\tcur_acc len {len(cur_acc)}')
+            # commands.append(list(permutations))
+        # remove all cur commands longer than longest cur command
+        min_len = min(len(c) for c in cur_acc)
+        cur_acc = list(filter(lambda x: len(x) == min_len, cur_acc))
+        commands.append(cur_acc)
 
+
+    # print(f'{len(commands)=}')
+    # print(f'{len(commands[-1])=}')
+    # breakpoint()
+    # print('\n'.join(reversed(commands)))
+    smallest = sorted(commands[-1], key=lambda x: len(x))[0]
+    # print(smallest, len(smallest))
     codenum = int(code.split('A')[0])
-    return codenum * len(commands[-1])
+    res = codenum * len(smallest)
+    print(f'{codenum} * {len(smallest)} = {res}')
+    return res
 
 
+# allperms = '\n'.join(sorted(list(set(all_permutations_rec('<^^^AvvvA^^A>vvA')))))
+# print(allperms)
+# breakpoint()
 
 import sys
 fname = sys.argv[1]
