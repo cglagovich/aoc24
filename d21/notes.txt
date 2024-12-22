@@ -1,0 +1,37 @@
+This has three levels of remotes.
+1. Human pressed directional
+2. Robot pressed direciontal
+3. Robot pressed directional
+4. Robot pressed numeric
+
+Result: arithmetic expressions which requires the shortest sequence of commands
+the human will press in order to get the code entered.
+Notes: 
+- greedily finding the shortest sequence of commands from bottom up may not be optimal,
+but at first I will pretend that it is.
+- robot arms must avoid the empty space on each pad
+
+This is one problem but wrapped up three times.
+Solution:
+- given a sequence, a target pad, and a source pad, output the minimal set of commands to achieve that sequence
+- apply this function on the three pads
+
+Greedy does not give the right answer. It is possible that one sequence of <<<^^
+on a keypad leads to more button presses on the higher level than <^<^<. 
+
+Here's a dumb idea: 
+- For each level of directional commands except for the last, brute force produce
+all variations of orderings for sequences between 'A' commands. Take each of these
+permutations all the way to the top, picking the one with the smallest length.
+- I implemented this and it sort of works, but I get a lower result than expected. 
+I think that's because I'm creating invalid paths that go over the illegal space.
+I need to filter by legal commands.
+- My answer was too high again. I think another problem I had was that I'm not generating all permutations.
+For each permutation of the first run, I'm not enumerating all permutation of the next run and so forth.
+
+^ Turns out that this worked! However, it takes 31.88 seconds to run.
+For Part 2 it might take...... forever.
+There must be some structure to the problem that I don't understand. Maybe, given a chain of robots,
+there's some always optimal way to get to a specific part of the keypad. 
+I see the example usually has `<v<` rather than `v<<` or `<<v`.
+Or maybe there's a way to solve this with dynamic programming.
